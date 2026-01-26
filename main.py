@@ -1,6 +1,4 @@
 from python_terraform import * 
-t = Terraform()
+tf = Terraform(working_dir="env ")
 
-# terraform plan -var-file="dev.tfvars"
-
-
+# terraform plan -var-file="env/variables.tfvars"
