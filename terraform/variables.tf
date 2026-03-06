@@ -18,3 +18,14 @@ variable "PROX_API_KEY" {
   type        = string
   sensitive=true
 }
+variable "PROX_API_SECRET" {
+  description = "API secret for Proxmox server"
+  type        = string
+  sensitive=true
+}
+
+variable "PROX_PUB_KEY" {
+  description = "public key for proxmox server"
+  type        = string
+  sensitive=true
+}
