@@ -26,7 +26,6 @@ def main():
         print("Working on Terraform Apply")
         print("return code: ", return_code)
         print("stdout: ", stdout)
-        if
         print("stderr: ", stderr)
     return 0
 
