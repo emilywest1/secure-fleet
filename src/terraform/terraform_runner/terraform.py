@@ -1,5 +1,10 @@
 import subprocess
 import json
+import sys
+import os
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from config import TerraformConfig
 from plan import terraform_plan
 from apply import terraform_apply

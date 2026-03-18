@@ -157,6 +157,5 @@ output "nodes_ips" {
     nodes = {
       for k, vm in proxmox_virtual_environment_vm.nodes : k => vm.ipv4_addresses[1][0]
     }
-
 }
 }
