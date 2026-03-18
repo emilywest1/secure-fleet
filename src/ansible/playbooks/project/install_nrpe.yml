@@ -1,0 +1,125 @@
+---
+# install_nrpe.yml
+# Usage:
+#   ansible-playbook install_nrpe.yml -e "target_host=192.168.1.100"
+#   ansible-playbook install_nrpe.yml -e "target_host=192.168.1.100" -u myuser --private-key ~/.ssh/id_rsa
+
+- name: Install and configure NRPE
+  hosts: "{{ target_host }}"
+  become: true
+  gather_facts: true
+
+  vars:
+    # Override these at the command line with -e or in a vars file
+    nrpe_port: 5666
+    nrpe_allowed_hosts: "127.0.0.1,::1"  # Add your Nagios/Icinga server IP here
+    nrpe_log_facility: "daemon"
+    nrpe_pid_file: "/var/run/nagios/nrpe.pid"
+    nrpe_user: "nagios"
+    nrpe_group: "nagios"
+
+  tasks:
+
+    # ──────────────────────────────────────────
+    # Debian / Ubuntu
+    # ──────────────────────────────────────────
+    - name: Install NRPE and Nagios plugins (Debian/Ubuntu)
+      ansible.builtin.apt:
+        name:
+          - nagios-nrpe-server
+          - nagios-plugins-basic
+          - nagios-plugins-standard
+        state: present
+        update_cache: true
+      when: ansible_os_family == "Debian"
+
+    # ──────────────────────────────────────────
+    # RHEL / CentOS / Rocky / AlmaLinux
+    # ──────────────────────────────────────────
+    - name: Install EPEL repository (RHEL family)
+      ansible.builtin.yum:
+        name: epel-release
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    - name: Install NRPE and Nagios plugins (RHEL family)
+      ansible.builtin.yum:
+        name:
+          - nrpe
+          - nagios-plugins-all
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    # ──────────────────────────────────────────
+    # Configure NRPE
+    # ──────────────────────────────────────────
+    - name: Set NRPE configuration (Debian/Ubuntu path)
+      ansible.builtin.template:
+        src: nrpe.cfg.j2
+        dest: /etc/nagios/nrpe.cfg
+        owner: root
+        group: root
+        mode: "0644"
+      when: ansible_os_family == "Debian"
+      notify: Restart NRPE
+
+    - name: Set NRPE configuration (RHEL path)
+      ansible.builtin.template:
+        src: nrpe.cfg.j2
+        dest: /etc/nagios/nrpe.cfg
+        owner: root
+        group: root
+        mode: "0644"
+      when: ansible_os_family == "RedHat"
+      notify: Restart NRPE
+-
+    - name: Allow NRPE port through firewalld (RHEL family)
+      ansible.posix.firewalld:
+        port: "{{ nrpe_port }}/tcp"
+        permanent: true
+        state: enabled
+        immediate: true
+      when:
+        - ansible_os_family == "RedHat"
+        - ansible_facts.services['firewalld.service'] is defined
+        - ansible_facts.services['firewalld.service'].state == 'running'
+      ignore_errors: true
+
+    - name: Allow NRPE port through UFW (Debian/Ubuntu)
+      community.general.ufw:
+        rule: allow
+        port: "{{ nrpe_port }}"
+        proto: tcp
+      when: ansible_os_family == "Debian"
+      ignore_errors: true
+
+    - name: Enable and start NRPE service (Debian/Ubuntu)
+      ansible.builtin.service:
+        name: nagios-nrpe-server
+        enabled: true
+        state: started
+      when: ansible_os_family == "Debian"
+
+    - name: Enable and start NRPE service (RHEL family)
+      ansible.builtin.service:
+        name: nrpe
+        enabled: true
+        state: started
+      when: ansible_os_family == "RedHat"
+
+    - name: Check NRPE is listening on port {{ nrpe_port }}
+      ansible.builtin.wait_for:
+        port: "{{ nrpe_port }}"
+        timeout: 15
+      register: nrpe_check
+
+    - name: Report NRPE status
+      ansible.builtin.debug:
+        msg: "NRPE is up and listening on port {{ nrpe_port }}"
+      when: nrpe_check is succeeded
+
+  handlers:
+    - name: Restart NRPE
+      ansible.builtin.service:
+        name: "{{ 'nagios-nrpe-server' if ansible_os_family == 'Debian' else 'nrpe' }}"
+        state: restarted
