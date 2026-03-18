@@ -6,7 +6,7 @@
 
   vars:
     nrpe_port: 5666
-    nrpe_allowed_hosts: "127.0.0.1,::1"  # Add your Nagios/Icinga server IP here
+    nrpe_allowed_hosts: "127.0.0.1,::1"
     nrpe_log_facility: "daemon"
     nrpe_pid_file: "/var/run/nagios/nrpe.pid"
     nrpe_user: "nagios"
