@@ -1,0 +1,7 @@
+# Purpose of Chef in this project: run a database server on one node and browser app on another that pulls from the db.
+
+# Need to set up SSH between control nodes and each of nodes 1-3
+# install Chef Workstation on Control node, and make nodes 1-3 Chef nodes.
+
+# node1: Postgresql database
+# node2: Flask app

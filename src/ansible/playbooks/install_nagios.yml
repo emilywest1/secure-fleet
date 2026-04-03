@@ -1,5 +1,6 @@
+#  http://10.175.224.209/nagios4/
 - name: Install and configure Nagios
-  hosts: "{{ target_host }}"
+  hosts: nagios
   become: true
   gather_facts: true
 
@@ -37,7 +38,7 @@
     - name: Deploy Nagios node host configs
       ansible.builtin.template:
         src: nagios_nodes.cfg.j2
-        dest: "{{ nagios_objects_dir }}/nodes.cfg"
+        dest: "{{ nagios_objects_dir }}/nagios_nodes.cfg"
         owner: root
         group: root
         mode: "0644"
@@ -50,6 +51,7 @@
     - name: Enable Nagios Apache config
       ansible.builtin.command: a2enconf nagios4-cgi
       notify: Restart Apache
+      failed_when: false
 
     - name: Validate Nagios configuration
       ansible.builtin.command: nagios4 -v /etc/nagios4/nagios.cfg

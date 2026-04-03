@@ -1,6 +1,6 @@
 ---
 - name: Install and configure NRPE
-  hosts: "{{ target_host }}"
+  hosts: nodes
   become: true
   gather_facts: true
 
