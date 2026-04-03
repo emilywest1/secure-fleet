@@ -1,0 +1,85 @@
+- name: Install and configure Nagios
+  hosts: "{{ target_host }}"
+  become: true
+  gather_facts: true
+
+  vars:
+    nagios_admin_password: "nagiosadmin"
+    nagios_cfg_dir: /etc/nagios4
+    nagios_objects_dir: /etc/nagios4/conf.d
+
+  tasks:
+
+    - name: Install Nagios and required packages
+      ansible.builtin.apt:
+        name:
+          - nagios4
+          - nagios-plugins-basic
+          - nagios-plugins-standard
+          - nagios4-core
+          - libwww-perl
+        state: present
+        update_cache: true
+
+    - name: Install apache2
+      ansible.builtin.apt:
+        name:
+          - apache2
+          - apache2-utils
+        state: present
+
+    - name: Set Nagios web UI admin password
+      ansible.builtin.shell: >
+        htpasswd -b -c /etc/nagios4/htpasswd.users nagiosadmin {{ nagios_admin_password }}
+      args:
+        creates: /etc/nagios4/htpasswd.users
+
+    - name: Deploy Nagios node host configs
+      ansible.builtin.template:
+        src: nagios_nodes.cfg.j2
+        dest: "{{ nagios_objects_dir }}/nodes.cfg"
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart Nagios
+
+    - name: Enable Apache CGI module
+      ansible.builtin.command: a2enmod cgi
+      notify: Restart Apache
+
+    - name: Enable Nagios Apache config
+      ansible.builtin.command: a2enconf nagios4-cgi
+      notify: Restart Apache
+
+    - name: Validate Nagios configuration
+      ansible.builtin.command: nagios4 -v /etc/nagios4/nagios.cfg
+      register: nagios_verify
+      changed_when: false
+      failed_when: "'Total Errors:   0' not in nagios_verify.stdout"
+
+    - name: Enable and start Nagios
+      ansible.builtin.service:
+        name: nagios4
+        enabled: true
+        state: started
+
+    - name: Enable and start Apache
+      ansible.builtin.service:
+        name: apache2
+        enabled: true
+        state: started
+
+    - name: Report Nagios status
+      ansible.builtin.debug:
+        msg: "Nagios is running. Access the web UI at http://{{ ansible_host }}/nagios4"
+
+  handlers:
+    - name: Restart Nagios
+      ansible.builtin.service:
+        name: nagios4
+        state: restarted
+
+    - name: Restart Apache
+      ansible.builtin.service:
+        name: apache2
+        state: restarted
