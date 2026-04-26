@@ -2,6 +2,10 @@
 WSU CPT_S 427 Project for secure fleet management of distributed systems using Ansible, Chef, and Nagios. 
 VMs created and hosted on a remote Proxmox server using Terraform. Comes with a fault-tolerant webapp, database server, and a CPU stress fault injection to experiment with.  
 
+### Build instructions
+Create retrieve the IP addresses of VMs on a Proxmox server: create a .tfvars file, following the required variables listed in variables.tf for API access.  
+The Terraform module is used to create and retrieve the IP addresses of the VMs used in the features, but as long as you have access to 5 Ubuntu server VMs, and Ansible playbooks can be run with an updated inventory file.  
+
 ### Themes 
 Cloud infrastructure components  -- Infrastructure is created and managed entirely with cloud platform tools.  
 Secure scaling and deployment -- Scaling can be performed with Terraform and secure Proxmox API.  
