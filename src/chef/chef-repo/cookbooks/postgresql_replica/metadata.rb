@@ -1,0 +1,7 @@
+name 'postgresql_replica'
+maintainer 'The Authors'
+maintainer_email 'you@example.com'
+license 'All Rights Reserved'
+description 'Installs/Configures postgresql_replica'
+version '0.1.0'
+chef_version '>= 16'

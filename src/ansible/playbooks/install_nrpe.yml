@@ -1,4 +1,3 @@
----
 - name: Install and configure NRPE
   hosts: nodes
   become: true
@@ -6,11 +5,14 @@
 
   vars:
     nrpe_port: 5666
-    nrpe_allowed_hosts: "127.0.0.1,::1"
     nrpe_log_facility: "daemon"
     nrpe_pid_file: "/var/run/nagios/nrpe.pid"
     nrpe_user: "nagios"
     nrpe_group: "nagios"
+
+    # FIX: pull Nagios server IP from inventory group "nagios"
+    nrpe_allowed_hosts: >-
+      127.0.0.1,::1,{{ hostvars[groups['nagios'][0]].ansible_host }}
 
   tasks:
 
@@ -63,5 +65,5 @@
   handlers:
     - name: Restart NRPE
       ansible.builtin.service:
-        name: "{{ 'nagios-nrpe-server' if ansible_os_family == 'Debian' else 'nrpe' }}"
+        name: nagios-nrpe-server
         state: restarted

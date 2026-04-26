@@ -1,0 +1,77 @@
+---
+- name: Configure PostgreSQL network access (primary + replica)
+  hosts: node1,node3
+  become: true
+  gather_facts: true
+
+  vars:
+    pg_subnet: "{{ ansible_default_ipv4.address | regex_replace('\\.[0-9]+$', '.0') }}/24"
+
+  tasks:
+    - name: Get PostgreSQL version
+      ansible.builtin.shell: "ls /etc/postgresql"
+      register: pg_version
+      changed_when: false
+
+    - name: Set PostgreSQL config path
+      ansible.builtin.set_fact:
+        pg_conf_dir: "/etc/postgresql/{{ pg_version.stdout }}/main"
+
+    - name: Allow PostgreSQL to accept remote connections
+      ansible.builtin.lineinfile:
+        path: "{{ pg_conf_dir }}/postgresql.conf"
+        regexp: "^#?listen_addresses"
+        line: "listen_addresses = '*'"
+      notify: Restart PostgreSQL
+
+    - name: Remove stale pg_hba.conf entries for old subnets
+      ansible.builtin.lineinfile:
+        path: "{{ pg_conf_dir }}/pg_hba.conf"
+        regexp: "{{ item }}"
+        state: absent
+      loop:
+        - "^host.*fleetapp.*10\\..*md5"
+        - "^host.*replicator.*10\\..*md5"
+      notify: Restart PostgreSQL
+
+    - name: Allow fleetapp network access in pg_hba.conf
+      ansible.builtin.blockinfile:
+        path: "{{ pg_conf_dir }}/pg_hba.conf"
+        marker: "# {mark} ANSIBLE MANAGED FLEETDB ACCESS"
+        block: |
+          host    fleetdb     fleetapp     {{ pg_subnet }}     md5
+          host    replication replicator   {{ pg_subnet }}     md5
+      notify: Restart PostgreSQL
+
+    - name: Allow PostgreSQL port (iptables fallback)
+      ansible.builtin.shell: |
+        iptables -C INPUT -p tcp --dport 5432 -j ACCEPT || \
+        iptables -I INPUT -p tcp --dport 5432 -j ACCEPT
+      changed_when: false
+
+    - name: Allow PostgreSQL port through firewall (if UFW active)
+      community.general.ufw:
+        rule: allow
+        port: 5432
+        proto: tcp
+      ignore_errors: true
+
+    - name: Ensure PostgreSQL is started and enabled
+      ansible.builtin.service:
+        name: postgresql
+        state: started
+        enabled: true
+
+    - name: Verify fleetapp can authenticate locally
+      ansible.builtin.shell: >
+        psql -U fleetapp -d fleetdb -h 127.0.0.1 -c "SELECT 1;" -w
+      environment:
+        PGPASSWORD: fleetpass
+      changed_when: false
+      when: inventory_hostname == 'node1'
+
+  handlers:
+    - name: Restart PostgreSQL
+      ansible.builtin.service:
+        name: postgresql
+        state: restarted

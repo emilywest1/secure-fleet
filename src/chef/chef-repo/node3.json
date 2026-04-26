@@ -1,3 +1,6 @@
 {
-  "run_list": ["recipe[postgresql_replica]"]
+  "run_list": ["recipe[postgresql_replica]"],
+  "postgresql_replica": {
+    "primary_ip": "10.175.224.2"
+  }
 }

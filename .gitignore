@@ -1,3 +1,4 @@
 terraform.tfvar
 terraform.tfvars
 venv
+hosts

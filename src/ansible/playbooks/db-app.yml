@@ -1,0 +1,61 @@
+---
+- name: Run chef-solo on nodes
+  hosts: "{{ target }}"
+  become: true
+  gather_facts: false
+
+  vars:
+    target: nodes
+
+    db_primary: "{{ hostvars['node1'].ansible_host }}"
+    flask_app: "{{ hostvars['node2'].ansible_host }}"
+    db_replica: "{{ hostvars['node3'].ansible_host }}"
+
+  pre_tasks:
+    - name: Stop and clean up flaskapp before Chef run
+      ansible.builtin.shell: |
+        systemctl stop flaskapp 2>/dev/null || true
+        pkill -f "python3 /opt/fleetapp/app\.py" 2>/dev/null || true
+        sleep 1
+      when: inventory_hostname == 'node2'
+      changed_when: false
+
+  tasks:
+
+    - name: Sync chef-repo to node
+      ansible.builtin.synchronize:
+        src: /home/emily/Desktop/School/Spring-26/cpts-427/secure-fleet/src/chef/chef-repo/
+        dest: /home/terraform/chef-repo/
+
+    - name: Write node JSON for DB nodes (node1, node3)
+      ansible.builtin.copy:
+        dest: /home/terraform/chef-repo/{{ inventory_hostname }}.json
+        content: |
+          {
+            "run_list": ["recipe[postgresql]"],
+            "db": {
+              "primary": "{{ db_primary }}",
+              "replica": "{{ db_replica }}",
+              "flask_app": "{{ flask_app }}",
+              "role": "{{ 'primary' if inventory_hostname == 'node1' else 'replica' }}"
+            }
+          }
+      when: inventory_hostname in ['node1', 'node3']
+
+    - name: Write node JSON for app node (node2)
+      ansible.builtin.copy:
+        dest: /home/terraform/chef-repo/{{ inventory_hostname }}.json
+        content: |
+          {
+            "run_list": ["recipe[flaskapp]"],
+            "db": {
+              "primary": "{{ db_primary }}",
+              "replica": "{{ db_replica }}"
+            }
+          }
+      when: inventory_hostname == 'node2'
+
+    - name: Run chef-solo
+      ansible.builtin.command: >
+        chef-solo -c /home/terraform/chef-repo/solo.rb
+        -j /home/terraform/chef-repo/{{ inventory_hostname }}.json

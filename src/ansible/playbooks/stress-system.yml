@@ -1,0 +1,19 @@
+---
+- name: Stress test a node
+  hosts: "{{ node_to_stress }}"
+  become: true
+  gather_facts: true
+
+  vars:
+    node_to_stress: node1
+    cpus: 2
+    timeout: 120
+
+  tasks:
+    - name: Install stress
+      ansible.builtin.apt:
+        name: stress
+        state: present
+
+    - name: Run stress
+      ansible.builtin.command: stress --cpu {{ cpus }} --timeout {{ timeout }}

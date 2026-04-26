@@ -1,4 +1,4 @@
-#  http://10.175.224.209/nagios4/
+#  http://10.175.224.3/nagios4/
 - name: Install and configure Nagios
   hosts: nagios
   become: true
@@ -29,11 +29,9 @@
           - apache2-utils
         state: present
 
-    - name: Set Nagios web UI admin password
+    - name: Set Nagios web UI admin password (digest)
       ansible.builtin.shell: >
-        htpasswd -b -c /etc/nagios4/htpasswd.users nagiosadmin {{ nagios_admin_password }}
-      args:
-        creates: /etc/nagios4/htpasswd.users
+        htdigest -b -c /etc/nagios4/htdigest.users "Nagios4" nagiosadmin {{ nagios_admin_password }}
 
     - name: Deploy Nagios node host configs
       ansible.builtin.template:
@@ -53,6 +51,20 @@
       notify: Restart Apache
       failed_when: false
 
+    - name: Set Nagios to use basic auth
+      ansible.builtin.replace:
+        path: /etc/apache2/conf-available/nagios4-cgi.conf
+        regexp: 'AuthType Digest'
+        replace: 'AuthType Basic'
+      notify: Restart Apache
+
+    - name: Point to htpasswd file
+      ansible.builtin.replace:
+        path: /etc/apache2/conf-available/nagios4-cgi.conf
+        regexp: 'AuthUserFile\s+.*'
+        replace: 'AuthUserFile /etc/nagios4/htpasswd.users'
+      notify: Restart Apache
+
     - name: Validate Nagios configuration
       ansible.builtin.command: nagios4 -v /etc/nagios4/nagios.cfg
       register: nagios_verify
@@ -64,6 +76,11 @@
         name: nagios4
         enabled: true
         state: started
+
+    - name: Restart Apache
+      ansible.builtin.service:
+        name: apache2
+        state: restarted
 
     - name: Enable and start Apache
       ansible.builtin.service:

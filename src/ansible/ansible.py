@@ -45,7 +45,7 @@ def run_nagios_install(vm_info: dict):
         extravars={
             'target_host': 'nagios-vm',
             'nodes': nodes,  # passed into nagios_nodes.cfg.j2
-            'ansible_user': 'terraform',   # ← add this
+            'ansible_user': 'terraform',
 
         },
         verbosity=1
